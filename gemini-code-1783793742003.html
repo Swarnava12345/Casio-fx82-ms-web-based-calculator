@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Casio fx-82MS Emulator</title>
+    <style>
+        :root {
+            --calc-body: #32363b;
+            --screen-bg: #90a395;
+            --btn-gray: #6b7075;
+            --btn-dark: #222;
+            --btn-red: #c43c3c;
+            --btn-blue: #3d6889;
+            --text-yellow: #dca331;
+            --text-red: #c43c3c;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+
+        .calculator {
+            background-color: var(--calc-body);
+            width: 360px;
+            border-radius: 30px 30px 15px 15px;
+            padding: 25px 20px 40px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,0.2);
+            position: relative;
+        }
+
+        /* Branding */
+        .brand-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+        .brand { font-weight: bold; font-size: 1.2rem; letter-spacing: 1px; }
+        .model { font-style: italic; font-size: 0.9rem; }
+        .svpam { text-align: center; color: #aaa; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 5px; }
+
+        /* Screen */
+        .screen-container {
+            background-color: var(--screen-bg);
+            border-radius: 5px;
+            border: 4px solid #555;
+            border-bottom: 6px solid #444;
+            padding: 10px;
+            margin-bottom: 25px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 10px;
+            height: 15px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .indicator { opacity: 0; transition: opacity 0.2s; }
+        .indicator.active { opacity: 1; }
+
+        .display-math {
+            font-family: 'Courier New', Courier, monospace;
+            height: 25px;
+            font-size: 1.1rem;
+            color: #111;
+            overflow: hidden;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .display-result {
+            font-family: 'Courier New', Courier, monospace;
+            height: 30px;
+            font-size: 1.6rem;
+            color: #000;
+            text-align: right;
+            font-weight: bold;
+            overflow: hidden;
+        }
+
+        /* Layout Grids */
+        .top-section {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px 8px;
+            margin-bottom: 20px;
+        }
+
+        .numpad-section {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px 12px;
+        }
+
+        /* Button Wrappers & Labels */
+        .btn-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .label-shift {
+            color: var(--text-yellow);
+            font-size: 0.6rem;
+            position: absolute;
+            top: -14px;
+            white-space: nowrap;
+        }
+        
+        .label-alpha {
+            color: var(--text-red);
+            font-size: 0.6rem;
+            position: absolute;
+            top: -14px;
+            right: 0;
+        }
+
+        /* Buttons */
+        button {
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.4);
+            transition: transform 0.1s, box-shadow 0.1s;
+            width: 100%;
+            padding: 8px 0;
+            background-color: var(--btn-gray);
+        }
+
+        button:active {
+            transform: translateY(3px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.4);
+        }
+
+        /* Specific Button Styles */
+        .btn-dark { background-color: var(--btn-dark); font-size: 1rem; }
+        .btn-red { background-color: var(--btn-red); }
+        .btn-shift { background-color: #555; }
+        
+        /* Shape overrides */
+        .btn-oval { border-radius: 15px; padding: 6px 0; }
+        
+        /* Replay Pad */
+        .replay-wrapper {
+            grid-column: 3 / 5;
+            grid-row: 1 / 3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .replay-pad {
+            background-color: #4a4d52;
+            width: 80px;
+            height: 60px;
+            border-radius: 40px;
+            border: 2px solid #222;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.1), 0 3px 5px rgba(0,0,0,0.5);
+        }
+        .replay-label {
+            color: #aaa;
+            font-size: 0.5rem;
+            position: absolute;
+            top: -10px;
+            letter-spacing: 1px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="calculator">
+    <div class="brand-header">
+        <span class="brand">CASIO</span>
+        <span class="model">fx-82MS</span>
+    </div>
+    <div class="svpam">S-V.P.A.M.</div>
+
+    <div class="screen-container">
+        <div class="status-indicators">
+            <span class="indicator" id="ind-shift">S</span>
+            <span class="indicator" id="ind-alpha">A</span>
+            <span class="indicator active" id="ind-deg">D</span>
+        </div>
+        <div class="display-math" id="expression"></div>
+        <div class="display-result" id="result">0</div>
+    </div>
+
+    <!-- Top Scientific Buttons -->
+    <div class="top-section">
+        <!-- Row 1 & 2 overlap with Replay -->
+        <div class="btn-wrapper"><button class="btn-oval btn-shift" onclick="toggleShift()">SHIFT</button></div>
+        <div class="btn-wrapper"><button class="btn-oval btn-shift" onclick="toggleAlpha()">ALPHA</button></div>
+        
+        <div class="replay-wrapper">
+            <div class="replay-label">REPLAY</div>
+            <div class="replay-pad">
+                <!-- Decorative pad, usually used for cursor navigation which we map to basic features -->
+                <div style="font-size:10px; color:#aaa;">▲</div>
+                <div style="width:100%; display:flex; justify-content:space-between; padding:0 5px;">
+                    <div style="font-size:10px; color:#aaa;">◀</div>
+                    <div style="font-size:10px; color:#aaa;">▶</div>
+                </div>
+                <div style="font-size:10px; color:#aaa;">▼</div>
+            </div>
+        </div>
+
+        <div class="btn-wrapper"><span class="label-shift">CLR</span><button class="btn-oval btn-shift" onclick="press('MODE')">MODE</button></div>
+        <div class="btn-wrapper"><button class="btn-oval btn-shift" onclick="clearAll()">ON</button></div>
+
+        <!-- Row 2 -->
+        <div class="btn-wrapper"><span class="label-shift">x!</span><button class="btn-oval" onclick="press('x⁻¹', '!')">x⁻¹</button></div>
+        <div class="btn-wrapper"><span class="label-shift">nPr</span><button class="btn-oval" onclick="press('C', 'P')">nCr</button></div>
+        <div class="btn-wrapper"><span class="label-shift">Rec(</span><button class="btn-oval" onclick="press('Pol(')">Pol(</button></div>
+        <div class="btn-wrapper"><span class="label-shift">³√</span><button class="btn-oval" onclick="press('x³', '³√(')">x³</button></div>
+
+        <!-- Row 3 -->
+        <div class="btn-wrapper"><span class="label-shift">d/c</span><button class="btn-oval" onclick="press('/')">a b/c</button></div>
+        <div class="btn-wrapper"><span class="label-shift">x√</span><button class="btn-oval" onclick="press('√(', 'x√(')">√</button></div>
+        <div class="btn-wrapper"><button class="btn-oval" onclick="press('²')">x²</button></div>
+        <div class="btn-wrapper"><span class="label-shift">x√</span><button class="btn-oval" onclick="press('^', 'x√(')">^</button></div>
+        <div class="btn-wrapper"><span class="label-shift">10^x</span><button class="btn-oval" onclick="press('log(', '10^(')">log</button></div>
+        <div class="btn-wrapper"><span class="label-shift">e^x</span><button class="btn-oval" onclick="press('ln(', 'e^(')">ln</button></div>
+
+        <!-- Row 4 -->
+        <div class="btn-wrapper"><button class="btn-oval" onclick="press('-')">(-)</button></div>
+        <div class="btn-wrapper"><span class="label-shift">←</span><button class="btn-oval" onclick="press('°')">°' "</button></div>
+        <div class="btn-wrapper"><button class="btn-oval">hyp</button></div>
+        <div class="btn-wrapper"><span class="label-shift">sin⁻¹</span><span class="label-alpha">D</span><button class="btn-oval" onclick="press('sin(', 'sin⁻¹(')">sin</button></div>
+        <div class="btn-wrapper"><span class="label-shift">cos⁻¹</span><span class="label-alpha">E</span><button class="btn-oval" onclick="press('cos(', 'cos⁻¹(')">cos</button></div>
+        <div class="btn-wrapper"><span class="label-shift">tan⁻¹</span><span class="label-alpha">F</span><button class="btn-oval" onclick="press('tan(', 'tan⁻¹(')">tan</button></div>
+
+        <!-- Row 5 -->
+        <div class="btn-wrapper"><span class="label-shift">STO</span><button class="btn-oval">RCL</button></div>
+        <div class="btn-wrapper"><span class="label-shift">←</span><button class="btn-oval">ENG</button></div>
+        <div class="btn-wrapper"><span class="label-alpha">X</span><button class="btn-oval" onclick="press('(')">(</button></div>
+        <div class="btn-wrapper"><span class="label-alpha">Y</span><button class="btn-oval" onclick="press(')')">)</button></div>
+        <div class="btn-wrapper"><span class="label-shift">;</span><span class="label-alpha">M</span><button class="btn-oval" onclick="press(',')">,</button></div>
+        <div class="btn-wrapper"><span class="label-shift">M-</span><button class="btn-oval">M+</button></div>
+    </div>
+
+    <!-- Bottom Numpad Section -->
+    <div class="numpad-section">
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('7')">7</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('8')">8</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('9')">9</button></div>
+        <div class="btn-wrapper"><span class="label-shift">INS</span><button class="btn-red" onclick="deleteChar()">DEL</button></div>
+        <div class="btn-wrapper"><span class="label-shift">OFF</span><button class="btn-red" onclick="clearAll()">AC</button></div>
+
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('4')">4</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('5')">5</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('6')">6</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('×')">×</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('÷')">÷</button></div>
+
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('1')">1</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('2')">2</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('3')">3</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('+')">+</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('-')">-</button></div>
+
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('0')">0</button></div>
+        <div class="btn-wrapper"><button class="btn-dark" onclick="press('.')">.</button></div>
+        <div class="btn-wrapper"><span class="label-shift">π</span><button class="btn-dark" onclick="press('E', 'π')">EXP</button></div>
+        <div class="btn-wrapper"><span class="label-shift">DRG►</span><button class="btn-dark" onclick="press('Ans')">Ans</button></div>
+        <div class="btn-wrapper"><span class="label-shift">%</span><button class="btn-dark" onclick="calculate()">=</button></div>
+    </div>
+</div>
+
+<script>
+    let expr = '';
+    let isShiftActive = false;
+    let isAlphaActive = false;
+    let lastAns = 0;
+
+    const elExpr = document.getElementById('expression');
+    const elResult = document.getElementById('result');
+    const indShift = document.getElementById('ind-shift');
+    const indAlpha = document.getElementById('ind-alpha');
+
+    function toggleShift() {
+        isShiftActive = !isShiftActive;
+        isAlphaActive = false;
+        updateIndicators();
+    }
+
+    function toggleAlpha() {
+        isAlphaActive = !isAlphaActive;
+        isShiftActive = false;
+        updateIndicators();
+    }
+
+    function updateIndicators() {
+        indShift.classList.toggle('active', isShiftActive);
+        indAlpha.classList.toggle('active', isAlphaActive);
+    }
+
+    function press(normalVal, shiftVal = null, alphaVal = null) {
+        if (elResult.innerText === 'Math ERROR' || elResult.innerText === 'Syntax ERROR') {
+            clearAll();
+        }
+
+        let valToAppend = normalVal;
+
+        if (isShiftActive && shiftVal !== null) {
+            valToAppend = shiftVal;
+        } else if (isAlphaActive && alphaVal !== null) {
+            valToAppend = alphaVal;
+        }
+
+        expr += valToAppend;
+        elExpr.innerText = expr;
+
+        isShiftActive = false;
+        isAlphaActive = false;
+        updateIndicators();
+    }
+
+    function deleteChar() {
+        expr = expr.slice(0, -1);
+        elExpr.innerText = expr;
+    }
+
+    function clearAll() {
+        expr = '';
+        elExpr.innerText = '';
+        elResult.innerText = '0';
+        isShiftActive = false;
+        isAlphaActive = false;
+        updateIndicators();
+    }
+
+    // --- Math Engine Functions (Simulating Casio Logic) --- //
+    
+    // Factorial
+    function fact(n) {
+        if (n < 0 || !Number.isInteger(n)) return NaN;
+        if (n === 0 || n === 1) return 1;
+        let res = 1;
+        for (let i = 2; i <= n; i++) res *= i;
+        return res;
+    }
+
+    // Permutation (nPr)
+    function nPr(n, r) {
+        if (n < r || r < 0) return NaN;
+        return fact(n) / fact(n - r);
+    }
+
+    // Combination (nCr)
+    function nCr(n, r) {
+        if (n < r || r < 0) return NaN;
+        return fact(n) / (fact(r) * fact(n - r));
+    }
+
+    // Degrees to Radians for Trig
+    function toRad(deg) { return deg * (Math.PI / 180); }
+    function toDeg(rad) { return rad * (180 / Math.PI); }
+
+    function calculate() {
+        if (!expr) return;
+
+        try {
+            // 1. Prepare string for JS eval
+            let parseStr = expr
+                .replace(/×/g, '*')
+                .replace(/÷/g, '/')
+                .replace(/π/g, 'Math.PI')
+                .replace(/Ans/g, lastAns)
+                .replace(/E/g, '*10**')
+                .replace(/x⁻¹/g, '**(-1)')
+                .replace(/²/g, '**2')
+                .replace(/³/g, '**3')
+                .replace(/\^/g, '**');
+
+            // Replace log and ln
+            parseStr = parseStr.replace(/ln\(/g, 'Math.log(');
+            // Casio 'log' is Base 10
+            parseStr = parseStr.replace(/log\(/g, 'Math.log10(');
+            
+            // Replace e^ and 10^
+            parseStr = parseStr.replace(/e\^\(/g, 'Math.exp(');
+            parseStr = parseStr.replace(/10\^\(/g, '10**(');
+
+            // Replace Trig (Casio default is degrees)
+            parseStr = parseStr.replace(/sin\(([^)]+)\)/g, 'Math.sin(toRad($1))');
+            parseStr = parseStr.replace(/cos\(([^)]+)\)/g, 'Math.cos(toRad($1))');
+            parseStr = parseStr.replace(/tan\(([^)]+)\)/g, 'Math.tan(toRad($1))');
+            parseStr = parseStr.replace(/sin⁻¹\(([^)]+)\)/g, 'toDeg(Math.asin($1))');
+            parseStr = parseStr.replace(/cos⁻¹\(([^)]+)\)/g, 'toDeg(Math.acos($1))');
+            parseStr = parseStr.replace(/tan⁻¹\(([^)]+)\)/g, 'toDeg(Math.atan($1))');
+
+            // Handle unclosed trig brackets (e.g. user types "sin(30" )
+            parseStr = parseStr.replace(/sin\(([^)]+)$/g, 'Math.sin(toRad($1))');
+            parseStr = parseStr.replace(/cos\(([^)]+)$/g, 'Math.cos(toRad($1))');
+            parseStr = parseStr.replace(/tan\(([^)]+)$/g, 'Math.tan(toRad($1))');
+
+            // Replace Square and Cube Roots
+            parseStr = parseStr.replace(/³√\(([^)]+)\)/g, 'Math.cbrt($1)');
+            parseStr = parseStr.replace(/√\(([^)]+)\)/g, 'Math.sqrt($1)');
+            parseStr = parseStr.replace(/³√\(([^)]+)$/g, 'Math.cbrt($1)');
+            parseStr = parseStr.replace(/√\(([^)]+)$/g, 'Math.sqrt($1)');
+
+            // Handle x root y (e.g., 3x√8 -> 2) mapped via regex
+            parseStr = parseStr.replace(/(\d+)x√\(([^)]+)\)/g, 'Math.pow($2, 1/$1)');
+
+            // Permutation & Combination (Regex mapping aCb to nCr(a,b))
+            parseStr = parseStr.replace(/(\d+)C(\d+)/g, 'nCr($1, $2)');
+            parseStr = parseStr.replace(/(\d+)P(\d+)/g, 'nPr($1, $2)');
+
+            // Factorial (Regex mapping 5! to fact(5))
+            parseStr = parseStr.replace(/(\d+\.?\d*)!/g, 'fact($1)');
+
+            // 2. Evaluate
+            const result = new Function('fact', 'nCr', 'nPr', 'toRad', 'toDeg', 'return ' + parseStr)(fact, nCr, nPr, toRad, toDeg);
+
+            // 3. Format and display (handling Infinity and NaN)
+            if (!isFinite(result) || isNaN(result)) {
+                elResult.innerText = 'Math ERROR';
+            } else {
+                // Round to avoid JS floating point quirks (like 0.1 + 0.2 = 0.300000004)
+                let finalRes = Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+                lastAns = finalRes;
+                elResult.innerText = finalRes;
+            }
+
+        } catch (error) {
+            elResult.innerText = 'Syntax ERROR';
+        }
+    }
+    
+    // Basic Keyboard Support
+    document.addEventListener('keydown', (e) => {
+        const key = e.key;
+        if (/[0-9+\-*/.()]/.test(key)) {
+            press(key.replace('*', '×').replace('/', '÷'));
+        } else if (key === 'Enter' || key === '=') {
+            calculate();
+        } else if (key === 'Backspace') {
+            deleteChar();
+        } else if (key === 'Escape') {
+            clearAll();
+        }
+    });
+
+</script>
+</body>
+</html>
